@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Device Coins</title>
+    <style>
+        * {box-sizing: border-box; margin:0; padding:0;}
+        body {font-family: Arial, sans-serif; display:flex; min-height:100vh; transition: margin-left 0.3s; background:#f4f6f8;}
+
+        /* Sidebar */
+        .sidebar {position:fixed; left:0; top:0; width:220px; height:100%; background:#0d6efd; color:white; padding-top:20px; transition: transform 0.3s; z-index:1000;}
+        .sidebar h2 {text-align:center; margin-bottom:20px;}
+        .sidebar ul {list-style:none;}
+        .sidebar ul li {padding:12px 20px;}
+        .sidebar ul li a {color:white; text-decoration:none; display:block;}
+        .sidebar ul li a.active {background: rgba(255,255,255,0.2); border-radius:5px;}
+
+        /* Toggle Button */
+        .toggle-btn {position:fixed; left:10px; top:10px; font-size:24px; cursor:pointer; color:#0d6efd; z-index:1100;}
+
+        /* Main Content */
+        .content {flex:1; margin-left:220px; padding:20px; transition: margin-left 0.3s;}
+        body.sidebar-hidden .sidebar {transform:translateX(-100%);}
+        body.sidebar-hidden .content {margin-left:0;}
+        @media (max-width:768px){.sidebar{transform:translateX(-100%);} body.sidebar-visible .sidebar{transform:translateX(0);} .content{margin-left:0;}}
+
+        /* Table */
+        h1 {text-align:center; margin-bottom:20px; color:#333;}
+        .search-box {max-width:400px; margin:20px auto; text-align:center;}
+        .search-box input {width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-size:14px;}
+        table {width:100%; border-collapse:collapse; margin-top:20px; background:white; border-radius:8px; overflow:hidden;}
+        th, td {padding:12px; border:1px solid #ddd; text-align:center; font-size:14px;}
+        th {background:#007BFF; color:white;}
+        tr:nth-child(even){background:#f9f9f9;}
+    </style>
+</head>
+<body class="sidebar-hidden">
+
+<!-- Toggle -->
+<div class="toggle-btn" id="toggleBtn">☰</div>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <h2>Admin Panel</h2>
+    <ul>
+        <li><a href="all-users.html" class="active">👤 All Users</a></li>
+        <li><a href="redeem-requests.html">💰 Redeem Requests</a></li>
+        <li><a href="tasks.html">📋 Tasks</a></li>
+        <li><a href="statistics.html">📊 Statistics</a></li>
+        <li><a href="settings.html">⚙️ Settings</a></li>
+        <li><a href="logout.html">🚪 Logout</a></li>
+    </ul>
+</div>
+
+<!-- Main Content -->
+<div class="content">
+    <h1>Device Coins Dashboard</h1>
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search by Device ID, Name, or Model">
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>Device ID</th>
+            <th>Device Name</th>
+            <th>Device Model</th>
+            <th>Total Coins</th>
+        </tr>
+        </thead>
+        <tbody id="deviceTable">
+        <tr><td colspan="4">Loading devices...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBIs4SwCfUqzPge0LxqNUwqUzKzFknfv3I",
+        authDomain: "videoappxyz.firebaseapp.com",
+        databaseURL: "https://videoappxyz-default-rtdb.firebaseio.com",
+        projectId: "videoappxyz",
+        storageBucket: "videoappxyz.firebasestorage.app",
+        messagingSenderId: "200506250623",
+        appId: "1:200506250623:web:8281a9dfc281702d9af64a",
+        measurementId: "G-FXX8VB7XHQ"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const deviceTable = document.getElementById("deviceTable");
+    let devicesData = {}; // Store all devices
+
+    // Load devices
+    db.ref("devices").once("value").then(snapshot => {
+        devicesData = snapshot.val() || {};
+        renderTable(devicesData);
+    });
+
+    // Render table
+    function renderTable(data) {
+        deviceTable.innerHTML = "";
+        const keys = Object.keys(data);
+        if(keys.length === 0){
+            deviceTable.innerHTML = `<tr><td colspan="4">No devices found</td></tr>`;
+            return;
+        }
+        keys.forEach(id => {
+            const d = data[id];
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${id}</td>
+                <td>${d.deviceName || "-"}</td>
+                <td>${d.deviceModel || "-"}</td>
+                <td>${d.totalCoins ?? 0}</td>
+            `;
+            deviceTable.appendChild(tr);
+        });
+    }
+
+    // Search functionality
+    document.getElementById("searchInput").addEventListener("input", (e)=>{
+        const query = e.target.value.toLowerCase();
+        const filtered = {};
+        Object.keys(devicesData).forEach(id => {
+            const d = devicesData[id];
+            if(id.toLowerCase().includes(query) ||
+               (d.deviceName || "").toLowerCase().includes(query) ||
+               (d.deviceModel || "").toLowerCase().includes(query)){
+                filtered[id] = d;
+            }
+        });
+        renderTable(filtered);
+    });
+
+    // Sidebar toggle
+    const toggleBtn = document.getElementById("toggleBtn");
+    toggleBtn.addEventListener("click", ()=>{
+        document.body.classList.toggle("sidebar-hidden");
+        document.body.classList.toggle("sidebar-visible");
+    });
+</script>
+
+</body>
+</html>
