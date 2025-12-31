@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Device App Open Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        /* Reset and basic styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            display: flex;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 250px;
+            height: 100%;
+            background: #0d6efd;
+            color: white;
+            padding-top: 20px;
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar ul li {
+            padding: 15px 20px;
+        }
+
+        .sidebar ul li a {
+            color: white;
+            text-decoration: none;
+            display: block;
+        }
+
+        .sidebar ul li a.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+        }
+
+        /* Toggle Button */
+        .toggle-btn {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #0d6efd;
+            z-index: 1100;
+        }
+
+        /* Main content */
+        .content {
+            flex: 1;
+            margin-left: 250px;
+            padding: 20px;
+            transition: margin-left 0.3s;
+            width: 100%;
+        }
+
+        .filter-box {
+            max-width: 400px;
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        th {
+            background: #0d6efd;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .no-data {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+
+        /* Sidebar hidden */
+        body.sidebar-hidden .sidebar {
+            transform: translateX(-100%);
+        }
+
+        body.sidebar-hidden .content {
+            margin-left: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-visible .sidebar {
+                transform: translateX(0);
+            }
+            .content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body class="sidebar-hidden">
+
+<!-- Toggle Button -->
+<div class="toggle-btn" id="toggleBtn">☰</div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <h2>Admin Panel</h2>
+    <ul>
+        <li><a href="all-users.html">👤 All Users</a></li>
+        <li><a href="redeem-requests.html" class="active">💰 Redeem Requests</a></li>
+        <li><a href="tasks.html">📋 Tasks</a></li>
+        <li><a href="statistics.html">📊 Statistics</a></li>
+        <li><a href="settings.html">⚙️ Settings</a></li>
+        <li><a href="logout.html">🚪 Logout</a></li>
+    </ul>
+</div>
+
+<!-- Main Content -->
+<div class="content">
+    <h2>📱 Device App Open Report</h2>
+
+    <div class="filter-box">
+        <select id="deviceSpinner">
+            <option value="">Select Device ID</option>
+        </select>
+    </div>
+
+    <table id="reportTable" style="display:none;">
+        <thead>
+        <tr>
+            <th>Date</th>
+            <th>App Open Count</th>
+            <th>First Open Time</th>
+            <th>Last Open Time</th>
+        </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <div class="no-data" id="noData" style="display:none;">
+        No data found for this device.
+    </div>
+</div>
+
+<script>
+    // 🔥 Firebase Config (REPLACE WITH YOURS)
+    const firebaseConfig = {
+        apiKey: "AIzaSyBIs4SwCfUqzPge0LxqNUwqUzKzFknfv3I",
+        authDomain: "videoappxyz.firebaseapp.com",
+        databaseURL: "https://videoappxyz-default-rtdb.firebaseio.com",
+        projectId: "videoappxyz",
+        storageBucket: "videoappxyz.firebasestorage.app",
+        messagingSenderId: "200506250623",
+        appId: "1:200506250623:web:8281a9dfc281702d9af64a",
+        measurementId: "G-FXX8VB7XHQ"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const spinner = document.getElementById("deviceSpinner");
+    const table = document.getElementById("reportTable");
+    const tableBody = document.getElementById("tableBody");
+    const noData = document.getElementById("noData");
+
+    // 1️⃣ Load Device IDs into Spinner
+    database.ref("devices").once("value", snapshot => {
+        snapshot.forEach(child => {
+            const option = document.createElement("option");
+            option.value = child.key;
+            option.text = child.key;
+            spinner.appendChild(option);
+        });
+    });
+
+    // 2️⃣ On Device Selection
+    spinner.addEventListener("change", () => {
+        const deviceId = spinner.value;
+        tableBody.innerHTML = "";
+        table.style.display = "none";
+        noData.style.display = "none";
+
+        if (!deviceId) return;
+
+        database
+            .ref("devices")
+            .child(deviceId)
+            .child("dailyAppCount")
+            .once("value", snapshot => {
+
+                if (!snapshot.exists()) {
+                    noData.style.display = "block";
+                    return;
+                }
+
+                snapshot.forEach(dateSnap => {
+                    const date = dateSnap.key;
+                    const data = dateSnap.val();
+
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${date}</td>
+                        <td>${data.appOpenCount ?? 0}</td>
+                        <td>${data.firstOpenTime ?? "-"}</td>
+                        <td>${data.lastOpenTime ?? "-"}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                table.style.display = "table";
+            });
+    });
+
+    // Sidebar toggle
+    const toggleBtn = document.getElementById("toggleBtn");
+    toggleBtn.addEventListener("click", () => {
+        document.body.classList.toggle("sidebar-hidden");
+        document.body.classList.toggle("sidebar-visible");
+    });
+</script>
+
+</body>
+</html>

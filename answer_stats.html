@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin User Panel</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            display: flex;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 220px;
+            height: 100%;
+            background: #0d6efd;
+            color: white;
+            padding-top: 20px;
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar ul li {
+            padding: 12px 20px;
+        }
+
+        .sidebar ul li a {
+            color: white;
+            text-decoration: none;
+            display: block;
+        }
+
+        .sidebar ul li a.active {
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+        }
+
+        /* Toggle Button */
+        .toggle-btn {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #0d6efd;
+            z-index: 1100;
+        }
+
+        /* Main content */
+        .content {
+            flex: 1;
+            margin-left: 220px;
+            padding: 20px;
+            width: 100%;
+            transition: margin-left 0.3s;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        select {
+            padding: 8px;
+            margin: 10px 0;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        li {
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        /* Sidebar hidden */
+        body.sidebar-hidden .sidebar {
+            transform: translateX(-100%);
+        }
+
+        body.sidebar-hidden .content {
+            margin-left: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-visible .sidebar {
+                transform: translateX(0);
+            }
+            .content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body class="sidebar-hidden">
+
+<!-- Toggle Button -->
+<div class="toggle-btn" id="toggleBtn">☰</div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <h2>Admin Panel</h2>
+    <ul>
+        <li><a href="all-users.html" class="active">👤 All Users</a></li>
+        <li><a href="redeem-requests.html">💰 Redeem Requests</a></li>
+        <li><a href="tasks.html">📋 Tasks</a></li>
+        <li><a href="statistics.html">📊 Statistics</a></li>
+        <li><a href="settings.html">⚙️ Settings</a></li>
+        <li><a href="logout.html">🚪 Logout</a></li>
+    </ul>
+</div>
+
+<!-- Main Content -->
+<div class="content">
+    <h1>Admin User Panel</h1>
+
+    <div class="container">
+        <label for="userSelect">Select Device:</label>
+        <select id="userSelect">
+            <option value="">-- Select a Device --</option>
+        </select>
+
+        <h2>Selected Device</h2>
+        <ul id="devicesList"></ul>
+
+        <h2>Answer Stats</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Correct</th>
+                <th>Wrong</th>
+            </tr>
+            </thead>
+            <tbody id="answerStatsTable">
+            <tr><td colspan="3">Please select a device to view stats</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBIs4SwCfUqzPge0LxqNUwqUzKzFknfv3I",
+        authDomain: "videoappxyz.firebaseapp.com",
+        databaseURL: "https://videoappxyz-default-rtdb.firebaseio.com",
+        projectId: "videoappxyz",
+        storageBucket: "videoappxyz.firebasestorage.app",
+        messagingSenderId: "200506250623",
+        appId: "1:200506250623:web:8281a9dfc281702d9af64a",
+        measurementId: "G-FXX8VB7XHQ"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const userSelect = document.getElementById('userSelect');
+    const devicesList = document.getElementById('devicesList');
+    const answerStatsTable = document.getElementById('answerStatsTable');
+
+    // Load all Device IDs
+    db.ref('devices').once('value').then(snapshot => {
+        if (!snapshot.exists()) return;
+        snapshot.forEach(deviceSnap => {
+            const option = document.createElement('option');
+            option.value = deviceSnap.key;
+            option.textContent = deviceSnap.key;
+            userSelect.appendChild(option);
+        });
+    });
+
+    // On Device Selection
+    userSelect.addEventListener('change', () => {
+        const deviceId = userSelect.value;
+        devicesList.innerHTML = '';
+        answerStatsTable.innerHTML = '';
+
+        if (!deviceId) return;
+
+        devicesList.innerHTML = `<li>${deviceId}</li>`;
+
+        db.ref(`devices/${deviceId}/answerStats`).once('value').then(snapshot => {
+            answerStatsTable.innerHTML = '';
+            if (!snapshot.exists()) {
+                answerStatsTable.innerHTML =
+                    `<tr><td colspan="3">No answer stats found for this device</td></tr>`;
+                return;
+            }
+
+            snapshot.forEach(dateSnap => {
+                const date = dateSnap.key;
+                const data = dateSnap.val();
+                const correct = data.correct ?? 0;
+                const wrong = data.wrong ?? 0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${date}</td>
+                    <td>${correct}</td>
+                    <td>${wrong}</td>
+                `;
+                answerStatsTable.appendChild(tr);
+            });
+        });
+    });
+
+    // Sidebar toggle
+    const toggleBtn = document.getElementById("toggleBtn");
+    toggleBtn.addEventListener("click", () => {
+        document.body.classList.toggle("sidebar-hidden");
+        document.body.classList.toggle("sidebar-visible");
+    });
+</script>
+
+</body>
+</html>

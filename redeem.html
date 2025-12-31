@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redeem Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+            display: flex;
+        }
+        .sidebar {
+            width: 220px;
+            background: #1e1e2f;
+            color: #fff;
+            padding: 20px;
+            transition: transform 0.3s ease;
+            min-height: 100vh;
+        }
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+        .sidebar ul li {
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .sidebar ul li.active, .sidebar ul li:hover {
+            background: #343454;
+        }
+        .sidebar ul li a {
+            color: #fff;
+            text-decoration: none;
+            display: block;
+        }
+
+        .main {
+            flex: 1;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        .menu-btn {
+            display: none;
+            font-size: 26px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        .container {
+            width: 100%;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        button {
+            padding: 6px 12px;
+            margin: 2px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button.approve {
+            background-color: #28a745;
+            color: white;
+        }
+        button.reject {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                transform: translateX(-100%);
+                z-index: 1000;
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .menu-btn {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <h2>Admin Panel</h2>
+    <ul>
+        <li><a href="all-users.html">👤 All Users</a></li>
+        <li><a href="redeem-requests.html" class="active">💰 Redeem Requests</a></li>
+        <li><a href="tasks.html">📋 Tasks</a></li>
+        <li><a href="statistics.html">📊 Statistics</a></li>
+        <li><a href="settings.html">⚙️ Settings</a></li>
+        <li><a href="logout.html">🚪 Logout</a></li>
+    </ul>
+</div>
+
+<!-- Main -->
+<div class="main">
+    <span class="menu-btn" onclick="toggleSidebar()">☰</span>
+    <div class="container">
+        <h1>Redeem Requests</h1>
+        <table id="requestTable">
+            <thead>
+            <tr>
+                <th>Device ID</th>
+                <th>Account Name</th>
+                <th>Account Number</th>
+                <th>Coins</th>
+                <th>Cash</th>
+                <th>Status</th>
+                <th>Time</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody id="requestBody">
+            <!-- Requests will load here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+    function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("show");
+    }
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBIs4SwCfUqzPge0LxqNUwqUzKzFknfv3I",
+        authDomain: "videoappxyz.firebaseapp.com",
+        databaseURL: "https://videoappxyz-default-rtdb.firebaseio.com",
+        projectId: "videoappxyz",
+        storageBucket: "videoappxyz.firebasestorage.app",
+        messagingSenderId: "200506250623",
+        appId: "1:200506250623:web:8281a9dfc281702d9af64a",
+        measurementId: "G-FXX8VB7XHQ"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const requestBody = document.getElementById("requestBody");
+
+    function loadRequests() {
+        db.ref("devices").on("value", snapshot => {
+            requestBody.innerHTML = "";
+            snapshot.forEach(deviceSnap => {
+                const deviceId = deviceSnap.key;
+                const requests = deviceSnap.child("redeemRequests");
+                requests.forEach(reqSnap => {
+                    const req = reqSnap.val();
+                    const tr = document.createElement("tr");
+                    const date = new Date(req.time).toLocaleString();
+                    tr.innerHTML = `
+                      <td>${deviceId}</td>
+                      <td>${req.accountName}</td>
+                      <td>${req.accountNumber}</td>
+                      <td>${req.coins}</td>
+                      <td>${req.cash.toFixed(2)}</td>
+                      <td>${req.status}</td>
+                      <td>${date}</td>
+                      <td>
+                        ${req.status === 'pending' ? `
+                        <button class="approve" onclick="approveRequest('${deviceId}','${reqSnap.key}', ${req.coins})">Approve</button>
+                        <button class="reject" onclick="rejectRequest('${deviceId}','${reqSnap.key}')">Reject</button>
+                        ` : ''}
+                      </td>
+                    `;
+                    requestBody.appendChild(tr);
+                });
+            });
+        });
+    }
+
+    function approveRequest(deviceId, reqId, coins) {
+        const updates = {};
+        updates[`devices/${deviceId}/redeemRequests/${reqId}/status`] = "approved";
+        updates[`devices/${deviceId}/totalCoins`] = firebase.database.ServerValue.increment(-coins);
+        db.ref().update(updates)
+            .then(() => alert("Request Approved!"))
+            .catch(err => alert("Error: " + err.message));
+    }
+
+    function rejectRequest(deviceId, reqId) {
+        db.ref(`devices/${deviceId}/redeemRequests/${reqId}/status`)
+            .set("rejected")
+            .then(() => alert("Request Rejected!"))
+            .catch(err => alert("Error: " + err.message));
+    }
+
+    loadRequests();
+</script>
+</body>
+</html>
